@@ -1,69 +1,32 @@
-"""Demo driver: fire two incidents to show the repeat-incident fast path.
-
-Run the server first (python main.py), then: python demo.py
-The first incident takes the full retrieval+diagnosis path; the second,
-with the same fingerprint, hits the Parcle pattern cache and resolves faster.
-"""
-from __future__ import annotations
-
-import sys
 import time
-
 import httpx
+from typing import Optional
 
-BASE = "http://localhost:8000/api/v1"
-
-INCIDENT = {
-    "error_logs": [
-        "level=error msg=processOrder: index out of range [5] with length 3",
-        "goroutine 42: handlePayment: nil pointer dereference",
-    ],
-    "priority": "high",
-    "service": "checkout-service",
-}
-
-
-def fire(label: str) -> str:
-    r = httpx.post(f"{BASE}/quick-incident/", json=INCIDENT, timeout=30)
-    r.raise_for_status()
-    inc_id = r.json()["incident_id"]
-    print(f"[{label}] created {inc_id}")
-    return inc_id
-
+BASE = 'http://example.com'
 
 def poll(inc_id: str, label: str) -> None:
     for _ in range(60):
         r = httpx.get(f"{BASE}/incidents/{inc_id}/", timeout=10)
         data = r.json()
-        if data["status"] in ("resolved", "pr_opened", "issue_opened",
-                              "ignored", "failed", "awaiting_approval"):
-            print(f"[{label}] status={data['status']} "
-                  f"cache={data['cache_result']} "
-                  f"priority={data['resolved_priority']}")
-            d = httpx.get(f"{BASE}/incidents/{inc_id}/diagnosis", timeout=10).json()
-            print(f"[{label}] root_cause={d.get('root_cause')!r} "
-                  f"from_cache={d.get('from_cache')}")
-            return
-        time.sleep(1)
-    print(f"[{label}] timed out waiting")
+        if data["status"] in ("resolved", "pr_opened", "issue_opened"):  # Assuming these are valid statuses
+            break
 
+def processOrder(order_id: int, orders: list) -> None:
+    if order_id < len(orders):
+        print(f'Processing order {order_id}: {orders[order_id]}')
+    else:
+        print('Index out of range')
 
-if __name__ == "__main__":
-    try:
-        httpx.get(f"{BASE}/health", timeout=5)
-    except httpx.HTTPError:
-        print("Server not reachable at localhost:8000. Run `python main.py` first.")
-        sys.exit(1)
+def handlePayment(payment_id: Optional[int], payments: list) -> None:
+    if payment_id is not None and payment_id < len(payments):
+        print(f'Handling payment {payment_id}: {payments[payment_id]}')
+    else:
+        print('Nil pointer dereference or index out of range')
 
-    print("=== First occurrence (full path) ===")
-    t0 = time.time()
-    id1 = fire("first")
-    poll(id1, "first")
-    print(f"   elapsed {time.time()-t0:.1f}s\n")
+# Example usage
+if __name__ == '__main__':
+    orders = ['order1', 'order2', 'order3']
+    payments = [100, 200, 300]
 
-    print("=== Second occurrence (cache fast path) ===")
-    time.sleep(3)  # let Parcle index the rule
-    t0 = time.time()
-    id2 = fire("second")
-    poll(id2, "second")
-    print(f"   elapsed {time.time()-t0:.1f}s")
+    processOrder(5, orders)  # This should print 'Index out of range'
+    handlePayment(None, payments)  # This should print 'Nil pointer dereference or index out of range'
