@@ -1,4 +1,4 @@
-package dummy
+package dummylib
 
 import "fmt"
 

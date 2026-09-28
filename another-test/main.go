@@ -2,13 +2,13 @@ package main
 
 import (
 	"fmt"
-	"github.com/nurysso/test/go-submod"
+	"github.com/nurysso/test/dummylib"
 	"os"
 )
 
 func main() {
 	// Call your dummy library
-	message := dummy.SayHello("bruh")
+	message := dummylib.SayHello("bruh")
 	fmt.Println(message)
 
 	file, _ := os.Open("test")
